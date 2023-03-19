@@ -1,4 +1,5 @@
 import { Configuration, OpenAIApi } from 'openai';
+import { backOff } from 'exponential-backoff';
 import fs from 'fs';
 
 const configuration = new Configuration({
@@ -63,61 +64,73 @@ function createFoldersFiles(structureMap, data, codeForFile) {
 
 async function createCode(type, functionality, structure, file, allCode) {
   console.log(`Creating file: ${file}...`);
-  const prompt = {
-    model: 'text-davinci-003',
-    prompt: `[APP TYPE]: ${type}
-[APP FUNCTIONALITY]: ${functionality}
-[FOLDER / FILE STRUCTURE]:
-${structure}
-[PREVIOUS CODE]:
-${allCode}
-[INSTRUCTIONS]: Taking into account the above file structure and information, create the ${file} file needed for a ${type}.
-[CODED FILE]:`,
+  let prompt = `[APP TYPE]: ${type}
+  [APP FUNCTIONALITY]: ${functionality}
+  [FOLDER / FILE STRUCTURE]:
+  ${structure}
+  [PREVIOUS CODE]:
+  ${allCode}
+  [INSTRUCTIONS]: Taking into account the above file structure and information, create the ${file} file needed for a ${type}.
+  [CODED FILE]:`;
+  const jaqInstructions = {
+    model: 'gpt-3.5-turbo-0301',
+    messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
     max_tokens: 2000,
     top_p: 1,
     frequency_penalty: 0,
     presence_penalty: 0,
-    stop: '[STOP]',
   };
-  const res = await openai.createCompletion(prompt);
-  const data = res.data.choices[0].text;
+  let IBackOffOptions = {
+    delayFirstAttempt: true,
+    maxDelay: 500,
+    numOfAttempts: 100,
+  };
+  const res = await backOff(() => openai.createChatCompletion(jaqInstructions), IBackOffOptions);
+  const data = res.data.choices[0].message.content;
   console.log(`File created: ${file}`);
   return data;
 }
 
 async function createStructure(type, functionality, languages) {
-  const prompt = {
-    model: 'text-davinci-003',
-    prompt: `[INSTRUCTIONS]: Generate the folder and file structure needed for a simple application using the following information.
-[TYPE OF APP]: notepad app
-[FUNCTIONALITY]: add notepad items, delete items, edit items, saves to local storage
-[LANGUAGES / LIBRARIES]: HTML, CSS, JS
-[FOLDER / FILE STRUCTURE]:
-/notepadapp
-  /js
-    app.js
-  /css
-    style.css
-  index.html
-[STOP]
-[INSTRUCTIONS]: Generate the folder and file structure needed for a simple application using the following information.
-[TYPE OF APP]: ${type}
-[FUNCTIONALITY]: ${functionality}
-[LANGUAGES / LIBRARIES]: ${languages}
-[FOLDER / FILE STRUCTURE]:
-`,
-    temperature: 0.7,
-    max_tokens: 500,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-    stop: '[STOP]',
-  };
-  const res = await openai.createCompletion(prompt);
-  const data = res.data.choices[0].text.trim();
-  // console.log(data);
-  return data;
+  try {
+    let prompt = `[INSTRUCTIONS]: Generate the folder and file structure needed for a simple application using the following information.
+    [TYPE OF APP]: notepad app
+    [FUNCTIONALITY]: add notepad items, delete items, edit items, saves to local storage
+    [LANGUAGES / LIBRARIES]: HTML, CSS, JS
+    [FOLDER / FILE STRUCTURE]:
+    /notepadapp
+      /js
+        app.js
+      /css
+        style.css
+      index.html
+    [STOP]
+    [INSTRUCTIONS]: Generate the folder and file structure needed for a simple application using the following information.
+    [TYPE OF APP]: ${type}
+    [FUNCTIONALITY]: ${functionality}
+    [LANGUAGES / LIBRARIES]: ${languages}
+    [FOLDER / FILE STRUCTURE]:`;
+    const jaqInstructions = {
+      model: 'gpt-3.5-turbo-0301',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 50,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    };
+    let IBackOffOptions = {
+      delayFirstAttempt: true,
+      maxDelay: 500,
+      numOfAttempts: 100,
+    };
+    const res = await backOff(() => openai.createChatCompletion(jaqInstructions), IBackOffOptions);
+    const data = res.data.choices[0].message.content;
+    return data;
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 async function createApplication(type, functionality, languages) {
