@@ -1,1 +1,1 @@
-npm i openai fs
+npm i openai exponential-backoff fs
