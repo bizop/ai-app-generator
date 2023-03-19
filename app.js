@@ -94,7 +94,7 @@ async function createCode(type, functionality, structure, file, allCode) {
 
 async function createStructure(type, functionality, languages) {
   try {
-    let prompt = `[INSTRUCTIONS]: Generate the folder and file structure needed for a simple application using the following information.
+    let prompt = `[INSTRUCTIONS]: Generate the required folder and file structure needed for a simple application using the following information.
     [TYPE OF APP]: notepad app
     [FUNCTIONALITY]: add notepad items, delete items, edit items, saves to local storage
     [LANGUAGES / LIBRARIES]: HTML, CSS, JS
@@ -114,7 +114,7 @@ async function createStructure(type, functionality, languages) {
     const jaqInstructions = {
       model: 'gpt-3.5-turbo-0301',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      temperature: 0.5,
       max_tokens: 50,
       top_p: 1,
       frequency_penalty: 0,
